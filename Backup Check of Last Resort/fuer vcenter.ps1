@@ -6,7 +6,7 @@
 #https://helpcenter.veeam.com/docs/backup/vsphere/backup_job_advanced_notify_vm.html?ver=120
 
 
-#ChatGPT (GPT-3.5) und Josy ;-)
+#OpenAI ChatGPT (GPT-3.5) und COUNT IT Josy ;-)
 
 
 # VMs to exclude from the check
