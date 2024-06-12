@@ -1,64 +1,51 @@
 #Backup Check of Last Resort
 
 
-#Parameter ob Backup erfolgreich war, wird von Veeam geschrieben
-#Set successful backup details to this VM attribute -> Last Backup
-#https://helpcenter.veeam.com/docs/backup/vsphere/backup_job_advanced_notify_vm.html?ver=120
+#runs localy at Veeam Server
+#only tested on stand alone hyper-v Server
 
 
-#OpenAI ChatGPT (GPT 4o) und COUNT IT Josy ;-)
 
+#OpenAI ChatGPT (GPT 4) und COUNT IT Josy ;-)
 
-# VMs to exclude from the check
-param (
-    [string[]]$excludedVMs = @("VM-Test01","Test-VM")
-)
+# Veeam und Hyper-V PowerShell SnapIns laden
+Add-PSSnapin VeeamPSSnapIn
+Import-Module Hyper-V
 
-function Get-CustomAttribute {
-    param (
-        [string]$VMName,
-        [string]$AttributeName
-    )
+# Konfigurierbare Variablen
+$hyperVServer = "DeinHyperVServer"
+$excludeVMs = @("VMName1", "VMName2")  # Liste der VMs, die ausgeschlossen werden sollen
+$hoursThreshold = 60
 
-    try {
-        $vm = Get-VM -Name $VMName -ErrorAction Stop
-        $attribute = $vm | Get-VMMetadata -Name $AttributeName -ErrorAction Stop
-        return [datetime]$attribute.Value
-    } catch {
-        Write-Output "UNKNOWN: Error retrieving attribute for VM $VMName: $_"
-        exit 3
-    }
-}
+# Liste aller VMs auf dem Hyper-V Server abfragen, ausgenommen die zu ignorierenden
+$allVMs = Get-VM -ComputerName $hyperVServer | Where-Object {$_.Name -notin $excludeVMs}
 
-function Check-BackupStatus {
-    $currentDate = Get-Date
-    $cutoffDate = $currentDate.AddHours(-60)
-    $criticalVMs = @()
+# Überprüfen der Backup-Zeit für jede VM
+$failedVMs = @()
+foreach ($vm in $allVMs) {
+    $lastBackup = Get-VBRRestorePoint -Name $vm.Name | Sort-Object CreationTime -Descending | Select-Object -First 1
 
-    $vms = Get-VM | Where-Object { $excludedVMs -notcontains $_.Name }
-
-    foreach ($vm in $vms) {
-        $backupDate = Get-CustomAttribute -VMName $vm.Name -AttributeName "Backup"
-        if ($backupDate -lt $cutoffDate) {
-            $criticalVMs += $vm.Name
+    if ($lastBackup -ne $null) {
+        $timeSinceLastBackup = (New-TimeSpan -Start $lastBackup.CreationTime -End (Get-Date)).TotalHours
+        if ($timeSinceLastBackup -gt $hoursThreshold) {
+            $failedVMs += $vm.Name
         }
-    }
-
-    if ($criticalVMs.Count -eq 0) {
-        Write-Output "OK: All VMs have recent backups"
-        exit 0
     } else {
-        $criticalVMsList = $criticalVMs -join ", "
-        Write-Output "CRITICAL: Backup failed for VM(s): $criticalVMsList"
-        exit 2
+        $failedVMs += $vm.Name
     }
 }
 
-try {
-    Check-BackupStatus
-} catch {
-    Write-Output "UNKNOWN: An unexpected error occurred: $_"
+# Ausgabe und Exit Codes
+if ($failedVMs.Count -gt 0) {
+    Write-Output "CRITICAL: Backup failed for VM(s): $($failedVMs -join ', ')"
+    exit 2
+} elseif ($allVMs.Count -eq 0) {
+    Write-Output "UNKNOWN: No VMs found or all excluded from the check"
     exit 3
+} else {
+    Write-Output "OK: All VMs have recent backups"
+    exit 0
 }
+
 
 #last resort: place the vms under an allied country's command
