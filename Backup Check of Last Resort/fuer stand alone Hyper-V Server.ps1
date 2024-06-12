@@ -1,24 +1,53 @@
 #Backup Check of Last Resort
 
-
-#runs localy at Veeam Server
-#only tested on stand alone hyper-v Server
-
-
-
 #OpenAI ChatGPT (GPT 4) und COUNT IT Josy ;-)
 
+#runs localy at Veeam Server with Hyper-V RSAT:
+@veeam Server:
+Install-WindowsFeature Hyper-V-PowerShell 
+If the two servers are not in the same domain:
+Set-Item WSMan:\localhost\Client\TrustedHosts -Value "fqdn-of-hyper-v-host"
+Enable-WSManCredSSP -Role client -DelegateComputer "fqdn-of-hyper-v-host"
+group policy: Computer Configuration > Administrative Templates > System > Credentials Delegation > Allow delegating fresh credentials with NTLM-only server authentication
+Click Enable and add wsman/fqdn-of-hyper-v-host.
+
+
+@hyper-v Server:
+
+If the two servers are not in the same domain
+Enable-PSRemoting + Enable-WSManCredSSP -Role server @Hyper-v
+
+
+
+
+#only tested on stand alone hyper-v Server
+
+#a monitoring server, with remote powershell to the Veem server, would probably be the best option. But in my case there is none
+
+
+
+
+
 # Veeam und Hyper-V PowerShell SnapIns laden
-Add-PSSnapin VeeamPSSnapIn
+
 Import-Module Hyper-V
 
 # Konfigurierbare Variablen
-$hyperVServer = "DeinHyperVServer"
+$hyperVServer = "fqdn-of-hyper-v-host"
 $excludeVMs = @("VMName1", "VMName2")  # Liste der VMs, die ausgeschlossen werden sollen
 $hoursThreshold = 60
+$username="Benutzername"
+$password = ConvertTo-SecureString "kennwort" -AsPlainText -Force
+
+
+
+
+$credential = New-Object System.Management.Automation.PSCredential ($username, $password)
+
+
 
 # Liste aller VMs auf dem Hyper-V Server abfragen, ausgenommen die zu ignorierenden
-$allVMs = Get-VM -ComputerName $hyperVServer | Where-Object {$_.Name -notin $excludeVMs}
+$allVMs = Get-VM -ComputerName $hyperVServer -Credential $credential | Where-Object {$_.Name -notin $excludeVMs}
 
 # Überprüfen der Backup-Zeit für jede VM
 $failedVMs = @()
