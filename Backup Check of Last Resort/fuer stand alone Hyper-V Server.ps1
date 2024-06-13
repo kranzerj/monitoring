@@ -45,9 +45,24 @@ $password = ConvertTo-SecureString "kennwort" -AsPlainText -Force
 $credential = New-Object System.Management.Automation.PSCredential ($username, $password)
 
 
+# Erstellen einer PSSession auf dem Hyper-V Server
+$session = New-PSSession -ComputerName $hyperVServer -ConfigurationName 'hvread' -Credential $credential
 
-# Liste aller VMs auf dem Hyper-V Server abfragen, ausgenommen die zu ignorierenden
-$allVMs = Get-VM -ComputerName $hyperVServer -Credential $credential | Where-Object {$_.Name -notin $excludeVMs}
+# Ausführen von Get-VM innerhalb der PSSession und Speichern der Ergebnisse in $vmList
+$vmList = Invoke-Command -Session $session -ScriptBlock {
+    Get-VM | Select-Object Name
+}
+
+# Schließen der PSSession
+Remove-PSSession -Session $session
+
+# Filtern der VMs lokal, anstatt im Scriptblock der Remotesitzung
+$allVMs = $vmList | Where-Object {$_.Name -notin $excludeVMs}
+
+
+
+
+
 
 # Überprüfen der Backup-Zeit für jede VM
 $failedVMs = @()
