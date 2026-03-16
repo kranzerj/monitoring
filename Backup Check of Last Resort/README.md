@@ -1,6 +1,6 @@
 Only Vmware: 
 
-![VMware]([https://github.com/[username]/[reponame]/blob/[branch]](https://github.com/kranzerj/monitoring/blob/main/Backup%20Check%20of%20Last%20Resort/Veeam01.jpg/image.jpg?raw=true)
+![VMware](https://github.com/kranzerj/monitoring/blob/main/Backup%20Check%20of%20Last%20Resort/Veeam01.jpg/image.jpg?raw=true)
 
 
 Only Hyper-V:
